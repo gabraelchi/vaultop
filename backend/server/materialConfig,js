@@ -1,0 +1,18 @@
+const materialYieldRates = {
+
+PET: 5.8,
+HDPE: 4.5,
+PVC: 3.2,
+NYLON: 6.1
+
+}
+
+function getMaterialYield(material){
+
+return materialYieldRates[material] || 1
+
+}
+
+module.exports = {
+getMaterialYield
+}
