@@ -28,6 +28,7 @@ export default function MDDashboard(){
 
 const [sessions,setSessions] = useState([])
 const [activeSessions,setActiveSessions] = useState([])
+const [loading,setLoading] = useState(true)
 
 
 // =========================
@@ -35,14 +36,26 @@ const [activeSessions,setActiveSessions] = useState([])
 // =========================
 async function fetchSessions(){
 
+try{
+
 const res = await fetch("/api/production")
 const data = await res.json()
+
+if(!res.ok){
+throw new Error("Failed to fetch data")
+}
 
 setSessions(data)
 
 setActiveSessions(
 data.filter(s=>s.status==="running")
 )
+
+}catch(err){
+console.error(err)
+}
+
+setLoading(false)
 
 }
 
@@ -64,7 +77,10 @@ return ()=>clearInterval(interval)
 // =========================
 // CALCULATIONS
 // =========================
-const completed = sessions.filter(s=>s.status==="completed")
+const completed =
+sessions
+.filter(s=>s.status==="completed")
+.sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt)) // newest first
 
 const totalSessions = completed.length
 
@@ -84,7 +100,7 @@ completed.reduce((sum,s)=>sum + (s.waste || 0),0)
 
 
 // =========================
-// CHART DATA
+// CHART DATA (SAFE)
 // =========================
 const chartData = {
 labels: completed.map((_,i)=>`S${i+1}`),
@@ -102,11 +118,9 @@ tension:0.3
 // FRAUD STYLE
 // =========================
 function fraudClass(session){
-
 return session.margin < -5
 ? "fraudRed"
 : "fraudGreen"
-
 }
 
 
@@ -127,6 +141,8 @@ return(
 
 <h1>Managing Director Dashboard</h1>
 
+{loading && <p>Loading dashboard...</p>}
+
 
 {/* KPI CARDS */}
 <div className="grid">
@@ -143,7 +159,7 @@ return(
 
 <div className="card">
 <h2>Avg Efficiency</h2>
-<p>{avgEfficiency.toFixed(1)}%</p>
+<p>{avgEfficiency ? avgEfficiency.toFixed(1) : 0}%</p>
 </div>
 
 <div className="card">
@@ -190,7 +206,10 @@ return(
 
 <h2>Production Trend</h2>
 
-<Line data={chartData} />
+{completed.length === 0
+? <p>No data yet</p>
+: <Line data={chartData} />
+}
 
 </div>
 
@@ -206,7 +225,7 @@ return(
 </p>
 )}
 
-{avgEfficiency < 75 && (
+{avgEfficiency < 75 && completed.length > 0 && (
 <p style={{color:"orange"}}>
 ⚠ Efficiency below optimal level
 </p>
@@ -218,7 +237,7 @@ return(
 </p>
 )}
 
-{fraudCount === 0 && avgEfficiency >= 75 && (
+{fraudCount === 0 && avgEfficiency >= 75 && completed.length > 0 && (
 <p style={{color:"green"}}>
 ✔ Production operating normally
 </p>
@@ -256,15 +275,13 @@ return(
 <td>{s.actualOutput}</td>
 
 <td>
-{s.efficiency?.toFixed(1)}%
+{s.efficiency ? `${s.efficiency.toFixed(1)}%` : "-"}
 </td>
 
 <td>{s.waste || 0}</td>
 
 <td className={fraudClass(s)}>
-
 {s.margin < -5 ? "⚠ Loss" : "✔ OK"}
-
 </td>
 
 </tr>
@@ -284,5 +301,4 @@ return(
 </div>
 
 )
-
 }
