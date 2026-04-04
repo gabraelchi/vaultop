@@ -3,34 +3,40 @@ import { connectDB } from "@/lib/mongodb"
 import Production from "@/models/Production"
 
 // =========================
-// MATERIAL YIELD LOGIC
+// MATERIAL YIELD (DYNAMIC READY)
 // =========================
-const materialYield:any = {
-MATERIAL1: 5.8,
-MATERIAL2: 4.5,
-MATERIAL3: 3.2,
-MATERIAL4: 6.1
+// TEMP fallback — later this comes from DB per company
+const materialYield: any = {
+PET: 0.85,
+HDPE: 0.8,
+PVC: 0.75,
+NYLON: 0.9
 }
 
-function calculateExpected(material:string, kg:number){
-const rate = materialYield[material] || 1
-return kg * rate
+function calculateExpected(material: string, kg: number, rate?: number){
+const finalRate = rate || materialYield[material] || 1
+return kg * finalRate
 }
 
 // =========================
 // FRAUD DETECTION
 // =========================
-function detectFraud(expected:number, actual:number){
+function detectFraud(expected: number, actual: number){
+
 const margin = actual - expected
 
 if(margin < -5){
 return {
-alert:true,
-reason:"Material loss beyond tolerance"
+alert: true,
+reason: "Material loss beyond tolerance"
 }
 }
 
-return { alert:false }
+return {
+alert: false,
+reason: "Normal production"
+}
+
 }
 
 
@@ -41,15 +47,20 @@ export async function POST(req: Request){
 
 await connectDB()
 
+try{
+
 const body = await req.json()
 
-const { machineId, operator, material, kg } = body
+const { machineId, operator, material, kg, rate } = body
 
 if(!machineId || !operator || !material || !kg){
-return NextResponse.json({ message:"Missing fields" },{ status:400 })
+return NextResponse.json(
+{ message:"Missing fields" },
+{ status:400 }
+)
 }
 
-// Prevent duplicate running session on same machine
+// Prevent duplicate running session per machine
 const existing = await Production.findOne({
 machineId,
 status:"running"
@@ -62,19 +73,31 @@ return NextResponse.json(
 )
 }
 
-const expectedOutput = calculateExpected(material, kg)
+// Dynamic expected output
+const expectedOutput = calculateExpected(material, kg, rate)
 
 const session = await Production.create({
 machineId,
 operator,
 material,
 kg,
+rate: rate || null,
 expectedOutput,
 status:"running",
 startTime: new Date()
 })
 
 return NextResponse.json(session)
+
+}catch(err:any){
+
+return NextResponse.json(
+{ message: err.message || "Server error" },
+{ status:500 }
+)
+
+}
+
 }
 
 
@@ -85,18 +108,33 @@ export async function PUT(req: Request){
 
 await connectDB()
 
+try{
+
 const body = await req.json()
 
 const { sessionId, actualOutput, waste, remarks } = body
 
+if(!sessionId){
+return NextResponse.json(
+{ message:"Session ID required" },
+{ status:400 }
+)
+}
+
 const session = await Production.findById(sessionId)
 
 if(!session){
-return NextResponse.json({ message:"Session not found" },{ status:404 })
+return NextResponse.json(
+{ message:"Session not found" },
+{ status:404 }
+)
 }
 
 if(session.status === "completed"){
-return NextResponse.json({ message:"Already completed" },{ status:400 })
+return NextResponse.json(
+{ message:"Already completed" },
+{ status:400 }
+)
 }
 
 const margin = actualOutput - session.expectedOutput
@@ -120,6 +158,16 @@ session.endTime = new Date()
 await session.save()
 
 return NextResponse.json(session)
+
+}catch(err:any){
+
+return NextResponse.json(
+{ message: err.message || "Server error" },
+{ status:500 }
+)
+
+}
+
 }
 
 
@@ -130,7 +178,21 @@ export async function GET(){
 
 await connectDB()
 
-const sessions = await Production.find().sort({ createdAt: -1 })
+try{
+
+const sessions = await Production
+.find()
+.sort({ createdAt: -1 })
 
 return NextResponse.json(sessions)
+
+}catch(err:any){
+
+return NextResponse.json(
+{ message: err.message || "Server error" },
+{ status:500 }
+)
+
+}
+
 }

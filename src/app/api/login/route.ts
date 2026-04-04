@@ -1,16 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server"
 
-export async function POST(req: Request) {
-  const body = await req.json();
-  const { machineCode, pin } = body;
+export async function POST(req: Request){
 
-  console.log("Machine Code:", machineCode);
-  console.log("PIN:", pin);
+const { username, password } = await req.json()
 
-  // Demo credentials
-  if (machineCode === "MACHINE123" && pin === "4321") {
-    return NextResponse.json({ success: true });
-  }
+// DEMO USERS
+if(username === "admin" && password === "admin123"){
+ return NextResponse.json({ success:true, role:"admin" })
+}
 
-  return NextResponse.json({ success: false });
+if(username === "md" && password === "md123"){
+ return NextResponse.json({ success:true, role:"md" })
+}
+
+if(username === "supervisor" && password === "sup123"){
+ return NextResponse.json({ success:true, role:"supervisor" })
+}
+
+return NextResponse.json(
+{ success:false, message:"Invalid credentials" },
+{ status:401 }
+)
+
 }

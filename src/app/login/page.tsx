@@ -1,60 +1,122 @@
 "use client"
+
 import { useState } from "react"
-import { NextResponse } from "next/server";
+import { useRouter } from "next/navigation"
 
-export async function POST(req: Request) {
-  const body = await req.json();
-  const { machineCode, pin } = body;
+export default function LoginPage(){
 
-  console.log("Machine Code:", machineCode);
-  console.log("PIN:", pin);
+const router = useRouter()
 
-  // Demo credentials
-  if (machineCode === "MACHINE123" && pin === "4321") {
-    return NextResponse.json({ success: true });
-  }
+const [username,setUsername] = useState("")
+const [password,setPassword] = useState("")
+const [error,setError] = useState("")
 
-  return NextResponse.json(
-    { success: false, message: "Invalid credentials" },
-    { status: 401 }
-  );
+async function handleLogin(){
+
+setError("")
+
+const res = await fetch("/api/login",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body: JSON.stringify({ username, password })
+})
+
+const data = await res.json()
+
+if(!res.ok){
+setError(data.message || "Login failed")
+return
 }
 
-export default function LoginPage() {
-  const [machineCode, setMachineCode] = useState("")
-  const [pin, setPin] = useState("")
+// SAVE ROLE
+localStorage.setItem("role", data.role)
 
-  const handleLogin = async () => {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ machineCode, pin })
-    })
+// REDIRECT BASED ON ROLE
+if(data.role === "admin"){
+router.push("/admin")
+}
 
-    const data = await res.json()
-    console.log(data)
-  }
+if(data.role === "md"){
+router.push("/md")
+}
 
-  return (
-    <div style={{ padding: "40px" }}>
-      <h1>Login</h1>
+if(data.role === "supervisor"){
+router.push("/supervisor")
+}
 
-      <input
-        placeholder="Machine Code"
-        value={machineCode}
-        onChange={(e) => setMachineCode(e.target.value)}
-      />
-      <br /><br />
+}
 
-      <input
-        type="password"
-        placeholder="PIN"
-        value={pin}
-        onChange={(e) => setPin(e.target.value)}
-      />
-      <br /><br />
+return(
 
-      <button onClick={handleLogin}>Login</button>
-    </div>
-  )
+<div style={{
+minHeight:"100vh",
+display:"flex",
+justifyContent:"center",
+alignItems:"center",
+background:"#020617",
+color:"white"
+}}>
+
+<div style={{
+background:"#0f172a",
+padding:"40px",
+borderRadius:"10px",
+width:"320px"
+}}>
+
+<h1 style={{marginBottom:"20px"}}>VaultOps Login</h1>
+
+<input
+placeholder="Username"
+value={username}
+onChange={(e)=>setUsername(e.target.value)}
+style={{
+width:"100%",
+padding:"10px",
+marginBottom:"15px",
+borderRadius:"5px",
+border:"none"
+}}
+/>
+
+<input
+type="password"
+placeholder="Password"
+value={password}
+onChange={(e)=>setPassword(e.target.value)}
+style={{
+width:"100%",
+padding:"10px",
+marginBottom:"20px",
+borderRadius:"5px",
+border:"none"
+}}
+/>
+
+<button
+onClick={handleLogin}
+style={{
+width:"100%",
+padding:"10px",
+background:"#2563eb",
+color:"white",
+border:"none",
+borderRadius:"5px",
+cursor:"pointer"
+}}
+>
+Login
+</button>
+
+{error && (
+<p style={{color:"red",marginTop:"10px"}}>
+{error}
+</p>
+)}
+
+</div>
+
+</div>
+
+)
 }
