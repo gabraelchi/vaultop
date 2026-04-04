@@ -6,10 +6,10 @@ import Production from "@/models/Production"
 // MATERIAL YIELD LOGIC
 // =========================
 const materialYield:any = {
-PET: 5.8,
-HDPE: 4.5,
-PVC: 3.2,
-NYLON: 6.1
+MATERIAL1: 5.8,
+MATERIAL2: 4.5,
+MATERIAL3: 3.2,
+MATERIAL4: 6.1
 }
 
 function calculateExpected(material:string, kg:number){

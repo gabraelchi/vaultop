@@ -1,54 +1,73 @@
 "use client"
 
-import {useEffect,useRef,useState} from "react"
+import { useEffect, useState } from "react"
 import Sidebar from "@/components/sidebar"
 import Topbar from "@/components/topbar"
 
 export default function AdminDashboard(){
 
-const socketRef = useRef(null)
+const [sessions,setSessions] = useState([])
+const [activeSessions,setActiveSessions] = useState([])
+const [loading,setLoading] = useState(true)
 
-const [activeSession,setActiveSession] = useState(null)
-const [completed,setCompleted] = useState([])
 
+// =========================
+// FETCH FROM DATABASE
+// =========================
+async function fetchSessions(){
+
+try{
+
+const res = await fetch("/api/production")
+const data = await res.json()
+
+if(!res.ok){
+throw new Error("Failed to fetch sessions")
+}
+
+setSessions(data)
+
+// MULTIPLE active sessions
+setActiveSessions(
+data.filter(s=>s.status === "running")
+)
+
+}catch(err){
+console.error(err)
+}
+
+setLoading(false)
+
+}
+
+
+// =========================
+// AUTO REFRESH (CLOUD SAFE)
+// =========================
 useEffect(()=>{
 
-socketRef.current = new WebSocket("ws://localhost:4000")
+fetchSessions()
 
-socketRef.current.onopen = ()=>{
-console.log("Admin connected to engine")
-}
+const interval = setInterval(fetchSessions,3000)
 
-socketRef.current.onmessage = (event)=>{
-
-const data = JSON.parse(event.data)
-
-if(data.type === "SESSION_STARTED"){
-setActiveSession(data.session)
-}
-
-if(data.type === "SESSION_COMPLETED"){
-
-setCompleted(prev=>[data,...prev])
-
-setActiveSession(null)
-
-}
-
-}
-
-return ()=>{
-socketRef.current.close()
-}
+return ()=>clearInterval(interval)
 
 },[])
 
-function fraudClass(alert){
 
-return alert ? "fraudRed" : "fraudGreen"
-
+// =========================
+// FRAUD STYLE
+// =========================
+function fraudClass(session){
+return session.margin < -5
+? "fraudRed"
+: "fraudGreen"
 }
 
+
+// =========================
+// UI
+// =========================
 return(
 
 <div className="dashboard">
@@ -65,30 +84,38 @@ return(
 
 <div className="grid">
 
-{/* LIVE SESSION */}
-
+{/* LIVE SESSIONS */}
 <div className="card">
 
-<h2>Active Session</h2>
+<h2>Live Sessions</h2>
 
-{activeSession ? (
+{loading && <p>Loading...</p>}
 
-<div>
+{!loading && activeSessions.length === 0 && (
+<p>No active sessions</p>
+)}
 
-<p><b>Operator:</b> {activeSession.operator}</p>
-<p><b>Material:</b> {activeSession.material}</p>
-<p><b>KG Used:</b> {activeSession.kg}</p>
-<p><b>Expected Output:</b> {activeSession.expectedOutput}</p>
+{activeSessions.map((s,i)=>(
+
+<div key={i} style={{marginBottom:"10px"}}>
+
+<p><b>Machine:</b> {s.machineId}</p>
+<p><b>Operator:</b> {s.operator}</p>
+<p><b>Material:</b> {s.material}</p>
+<p><b>KG:</b> {s.kg}</p>
+
+<p style={{color:"green"}}>🟢 Running</p>
+
+<hr/>
 
 </div>
 
-):( <p>No active session</p> )}
+))}
 
 </div>
 
 
 {/* SESSION STATUS PANEL */}
-
 <div className="card">
 
 <h2>Session Monitor</h2>
@@ -107,7 +134,6 @@ Red = Possible theft detected
 
 
 {/* COMPLETED SESSIONS */}
-
 <div className="card" style={{marginTop:"30px"}}>
 
 <h2>Completed Sessions</h2>
@@ -115,32 +141,35 @@ Red = Possible theft detected
 <table className="sessionTable">
 
 <thead>
-
 <tr>
+<th>Machine</th>
 <th>Operator</th>
 <th>Material</th>
 <th>Output</th>
-<th>Margin</th>
+<th>Efficiency</th>
 <th>Status</th>
 </tr>
-
 </thead>
 
 <tbody>
 
-{completed.map((s,i)=>(
+{sessions
+.filter(s=>s.status === "completed")
+.map((s,i)=>(
 
 <tr key={i}>
 
-<td>{s.session.operator}</td>
-<td>{s.session.material}</td>
-<td>{s.session.actualOutput}</td>
-<td>{s.session.margin}</td>
+<td>{s.machineId}</td>
+<td>{s.operator}</td>
+<td>{s.material}</td>
+<td>{s.actualOutput}</td>
 
-<td className={fraudClass(s.fraud.alert)}>
+<td>
+{s.efficiency ? `${s.efficiency.toFixed(1)}%` : "-"}
+</td>
 
-{s.fraud.alert ? "⚠ Theft Flag" : "✔ Normal"}
-
+<td className={fraudClass(s)}>
+{s.margin < -5 ? "⚠ Theft Flag" : "✔ Normal"}
 </td>
 
 </tr>
@@ -160,5 +189,4 @@ Red = Possible theft detected
 </div>
 
 )
-
 }
