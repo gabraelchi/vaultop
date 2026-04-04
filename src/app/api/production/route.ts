@@ -7,10 +7,10 @@ import Production from "@/models/Production"
 // =========================
 // TEMP fallback — later this comes from DB per company
 const materialYield: any = {
-PET: 0.85,
-HDPE: 0.8,
-PVC: 0.75,
-NYLON: 0.9
+MATERIAL1: 0.85,
+MATERIAL2: 0.8,
+MATERIAL3: 0.75,
+MATERIAL4: 0.9
 }
 
 function calculateExpected(material: string, kg: number, rate?: number){
