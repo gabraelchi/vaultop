@@ -23,18 +23,39 @@ const [sessionId,setSessionId] = useState(null)
 
 const [loading,setLoading] = useState(false)
 
-const expectedOutput = Math.floor(kg * 0.85)
+
+// =========================
+// MATERIALS (MATCH BACKEND)
+// =========================
+const materials = [
+"MATERIAL1",
+"MATERIAL2",
+"MATERIAL3",
+"MATERIAL4"
+]
+
+const materialRates = {
+MATERIAL1: 5.8,
+MATERIAL2: 4.5,
+MATERIAL3: 3.2,
+MATERIAL4: 6.1
+}
+
+const expectedOutput = Math.floor(
+kg * (materialRates[material] || 1)
+)
 
 
 // =========================
 // TIMER
 // =========================
 useEffect(()=>{
-let interval
 
-if(running){
-interval = setInterval(()=> setTimer(t=>t+1),1000)
-}
+if(!running) return
+
+const interval = setInterval(()=>{
+setTimer(t=>t+1)
+},1000)
 
 return ()=> clearInterval(interval)
 
@@ -45,6 +66,8 @@ return ()=> clearInterval(interval)
 // START SESSION
 // =========================
 async function startSession(){
+
+console.log("START CLICKED") // DEBUG
 
 if(running){
 alert("Session already running")
@@ -73,16 +96,19 @@ kg
 
 const data = await res.json()
 
+console.log("API RESPONSE:", data) // DEBUG
+
 if(!res.ok){
 throw new Error(data.message || "Failed to start session")
 }
 
 setSessionId(data._id)
-setRunning(true)
 setTimer(0)
+setRunning(true)
 setMessage("")
 
 }catch(err){
+console.error(err)
 alert(err.message)
 }
 
@@ -112,11 +138,6 @@ setShowModal(true)
 // =========================
 async function submitOutput(){
 
-if(!sessionId){
-alert("Invalid session")
-return
-}
-
 setLoading(true)
 
 try{
@@ -135,7 +156,7 @@ remarks
 const data = await res.json()
 
 if(!res.ok){
-throw new Error(data.message || "Failed to complete session")
+throw new Error(data.message)
 }
 
 setShowModal(false)
@@ -150,20 +171,6 @@ alert(err.message)
 
 setLoading(false)
 
-}
-
-
-// =========================
-// RESET
-// =========================
-function resetSession(){
-setTimer(0)
-setMessage("")
-setMaterial("")
-setOperator("")
-setKg(10)
-setSessionId(null)
-setRunning(false)
 }
 
 
@@ -192,45 +199,47 @@ return(
 
 <label>Operator</label>
 <input
+className="bg-black text-white px-3 py-2 rounded border border-gray-600 w-full"
 value={operator}
 onChange={(e)=>setOperator(e.target.value)}
 />
 
 <label>Material</label>
 <select
+className="bg-black text-white px-3 py-2 rounded border border-gray-600 w-full"
 value={material}
 onChange={(e)=>setMaterial(e.target.value)}
 >
-<option value="">Select</option>
-<option value="PET">PET</option>
-<option value="HDPE">HDPE</option>
-<option value="PVC">PVC</option>
-<option value="NYLON">NYLON</option>
+
+<option value="" style={{color:"black"}}>Select Material</option>
+
+{materials.map((m,i)=>(
+<option key={i} value={m} style={{color:"black"}}>
+{m}
+</option>
+))}
+
 </select>
 
 <label>KG Used</label>
 <input
 type="number"
+className="bg-black text-white px-3 py-2 rounded border border-gray-600 w-full"
 value={kg}
 onChange={(e)=>setKg(Number(e.target.value))}
 />
 
-<p>Expected Output: <b>{expectedOutput}</b></p>
+<p style={{marginTop:"10px"}}>
+Expected Output: <b>{expectedOutput}</b>
+</p>
 
 <div className="buttons">
 
-<button
-onClick={startSession}
-className="startBtn"
-disabled={loading}
->
+<button onClick={startSession} disabled={loading}>
 {loading ? "Starting..." : "Start Session"}
 </button>
 
-<button
-onClick={stopSession}
-className="stopBtn"
->
+<button onClick={stopSession}>
 Stop Session
 </button>
 
@@ -243,7 +252,7 @@ Stop Session
 
 <h2>Session Timer</h2>
 
-<p className="timer">
+<p>
 {running ? `${timer} seconds running` : "No active session"}
 </p>
 
@@ -251,33 +260,21 @@ Stop Session
 
 </div>
 
-
 {message && (
-
-<div className="successBox">
-
+<div>
 <p>{message}</p>
-
-<button onClick={resetSession}>
-Start New Session
-</button>
-
 </div>
-
 )}
 
-
 {showModal && (
-
-<div className="modalOverlay">
-
-<div className="modal">
+<div>
 
 <h3>Enter Output Produced</h3>
 
 <input
 type="number"
 placeholder="Output"
+className="bg-black text-white"
 value={output}
 onChange={(e)=>setOutput(e.target.value)}
 />
@@ -285,24 +282,23 @@ onChange={(e)=>setOutput(e.target.value)}
 <input
 type="number"
 placeholder="Waste"
+className="bg-black text-white"
 value={waste}
 onChange={(e)=>setWaste(e.target.value)}
 />
 
 <textarea
 placeholder="Remarks"
+className="bg-black text-white"
 value={remarks}
 onChange={(e)=>setRemarks(e.target.value)}
 />
 
-<button onClick={submitOutput} disabled={loading}>
-{loading ? "Submitting..." : "Submit Output"}
+<button onClick={submitOutput}>
+Submit Output
 </button>
 
 </div>
-
-</div>
-
 )}
 
 </div>
