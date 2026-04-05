@@ -12,28 +12,36 @@ const [loading,setLoading] = useState(true)
 
 
 // =========================
-// FETCH FROM DATABASE
+// SAFE FETCH
 // =========================
 async function fetchSessions(){
 
 try{
 
 const res = await fetch("/api/production")
-const data = await res.json()
+
+let data = []
+
+try{
+data = await res.json()
+}catch{
+console.warn("No JSON returned (likely server error)")
+return
+}
 
 if(!res.ok){
-throw new Error("Failed to fetch sessions")
+console.error("API ERROR:", data)
+return
 }
 
 setSessions(data)
 
-// MULTIPLE active sessions
 setActiveSessions(
 data.filter(s=>s.status === "running")
 )
 
 }catch(err){
-console.error(err)
+console.error("FETCH FAILED:", err)
 }
 
 setLoading(false)
@@ -42,7 +50,7 @@ setLoading(false)
 
 
 // =========================
-// AUTO REFRESH (CLOUD SAFE)
+// AUTO REFRESH
 // =========================
 useEffect(()=>{
 
@@ -56,12 +64,16 @@ return ()=>clearInterval(interval)
 
 
 // =========================
-// FRAUD STYLE
+// FRAUD STYLE SAFE
 // =========================
 function fraudClass(session){
+
+if(!session) return ""
+
 return session.margin < -5
 ? "fraudRed"
 : "fraudGreen"
+
 }
 
 
@@ -84,7 +96,6 @@ return(
 
 <div className="grid">
 
-{/* LIVE SESSIONS */}
 <div className="card">
 
 <h2>Live Sessions</h2>
@@ -99,10 +110,10 @@ return(
 
 <div key={i} style={{marginBottom:"10px"}}>
 
-<p><b>Machine:</b> {s.machineId}</p>
-<p><b>Operator:</b> {s.operator}</p>
-<p><b>Material:</b> {s.material}</p>
-<p><b>KG:</b> {s.kg}</p>
+<p><b>Machine:</b> {s?.machineId || "-"}</p>
+<p><b>Operator:</b> {s?.operator || "-"}</p>
+<p><b>Material:</b> {s?.material || "-"}</p>
+<p><b>KG:</b> {s?.kg || "-"}</p>
 
 <p style={{color:"green"}}>🟢 Running</p>
 
@@ -115,7 +126,6 @@ return(
 </div>
 
 
-{/* SESSION STATUS PANEL */}
 <div className="card">
 
 <h2>Session Monitor</h2>
@@ -133,7 +143,6 @@ Red = Possible theft detected
 </div>
 
 
-{/* COMPLETED SESSIONS */}
 <div className="card" style={{marginTop:"30px"}}>
 
 <h2>Completed Sessions</h2>
@@ -159,17 +168,17 @@ Red = Possible theft detected
 
 <tr key={i}>
 
-<td>{s.machineId}</td>
-<td>{s.operator}</td>
-<td>{s.material}</td>
-<td>{s.actualOutput}</td>
+<td>{s?.machineId || "-"}</td>
+<td>{s?.operator || "-"}</td>
+<td>{s?.material || "-"}</td>
+<td>{s?.actualOutput || "-"}</td>
 
 <td>
-{s.efficiency ? `${s.efficiency.toFixed(1)}%` : "-"}
+{s?.efficiency ? `${s.efficiency.toFixed(1)}%` : "-"}
 </td>
 
 <td className={fraudClass(s)}>
-{s.margin < -5 ? "⚠ Theft Flag" : "✔ Normal"}
+{s?.margin < -5 ? "⚠ Theft Flag" : "✔ Normal"}
 </td>
 
 </tr>
