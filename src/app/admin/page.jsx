@@ -1,17 +1,27 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import AdminDashboard from "./admin"
 
 export default function Page(){
 
-  useEffect(()=>{
-    const role = localStorage.getItem("role")
+  const [authorized, setAuthorized] = useState(false)
 
-    if(role !== "admin"){
-      window.location.href = "/login"
+  useEffect(()=>{
+    if(typeof window !== "undefined"){
+      const role = localStorage.getItem("role")
+
+      if(role === "admin"){
+        setAuthorized(true)
+      } else {
+        window.location.href = "/login"
+      }
     }
   },[])
+
+  if(!authorized){
+    return null
+  }
 
   return <AdminDashboard/>
 }

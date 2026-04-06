@@ -6,20 +6,10 @@ import Topbar from "@/components/topbar"
 
 export default function SupervisorDashboard(){
 
-const [material,setMaterial] = useState("")
-const [operator,setOperator] = useState("")
-const [kg,setKg] = useState(10)
-
-const [running,setRunning] = useState(false)
-const [timer,setTimer] = useState(0)
-
-const [showModal,setShowModal] = useState(false)
-const [output,setOutput] = useState("")
-const [waste,setWaste] = useState("")
-const [remarks,setRemarks] = useState("")
-
-const [message,setMessage] = useState("")
-const [sessionId,setSessionId] = useState(null)
+// =========================
+// MULTI SESSION STATE
+// =========================
+const [sessions, setSessions] = useState([])
 
 const [loading,setLoading] = useState(false)
 
@@ -41,40 +31,73 @@ MATERIAL3: 3.2,
 MATERIAL4: 6.1
 }
 
-const expectedOutput = Math.floor(
-kg * (materialRates[material] || 1)
-)
+
+// =========================
+// ADD NEW SESSION BLOCK
+// =========================
+function addSession(){
+
+setSessions(prev => [
+...prev,
+{
+id: Date.now(),
+material:"",
+operator:"",
+kg:10,
+running:false,
+timer:0,
+sessionId:null
+}
+])
+
+}
 
 
 // =========================
-// TIMER
+// UPDATE SESSION FIELD
+// =========================
+function updateSession(id, field, value){
+
+setSessions(prev =>
+prev.map(s =>
+s.id === id ? { ...s, [field]: value } : s
+)
+)
+
+}
+
+
+// =========================
+// TIMER PER SESSION
 // =========================
 useEffect(()=>{
 
-if(!running) return
-
 const interval = setInterval(()=>{
-setTimer(t=>t+1)
+
+setSessions(prev =>
+prev.map(s =>
+s.running ? { ...s, timer: s.timer + 1 } : s
+)
+)
+
 },1000)
 
 return ()=> clearInterval(interval)
 
-},[running])
+},[])
 
 
 // =========================
 // START SESSION
 // =========================
-async function startSession(){
+async function startSession(session){
 
-console.log("START CLICKED") // DEBUG
-
-if(running){
-alert("Session already running")
+if(session.running){
+alert("Already running")
 return
 }
 
-if(!material || !operator){
+if(!session.material || !session.operator){
 alert("Fill all fields")
 return
 }
@@ -87,28 +110,24 @@ const res = await fetch("/api/production",{
 method:"POST",
 headers:{ "Content-Type":"application/json" },
 body: JSON.stringify({
-machineId:"Machine-1",
-operator,
-material,
-kg
+machineId:"Machine-" + session.id,
+operator: session.operator,
+material: session.material,
+kg: session.kg
 })
 })
 
 const data = await res.json()
 
-console.log("API RESPONSE:", data) // DEBUG
-
 if(!res.ok){
-throw new Error(data.message || "Failed to start session")
+throw new Error(data.message || "Failed")
 }
 
-setSessionId(data._id)
-setTimer(0)
-setRunning(true)
-setMessage("")
+updateSession(session.id, "sessionId", data._id)
+updateSession(session.id, "running", true)
+updateSession(session.id, "timer", 0)
 
 }catch(err){
-console.error(err)
 alert(err.message)
 }
 
@@ -120,23 +139,15 @@ setLoading(false)
 // =========================
 // STOP SESSION
 // =========================
-function stopSession(){
+async function stopSession(session){
 
-if(!running || !sessionId){
-alert("No active session")
+if(!session.running){
+alert("Not running")
 return
 }
 
-setRunning(false)
-setShowModal(true)
-
-}
-
-
-// =========================
-// SUBMIT OUTPUT
-// =========================
-async function submitOutput(){
+const output = prompt("Enter Output")
+const waste = prompt("Enter Waste")
 
 setLoading(true)
 
@@ -146,10 +157,10 @@ const res = await fetch("/api/production",{
 method:"PUT",
 headers:{ "Content-Type":"application/json" },
 body: JSON.stringify({
-sessionId,
+sessionId: session.sessionId,
 actualOutput: Number(output),
 waste: Number(waste),
-remarks
+remarks:""
 })
 })
 
@@ -159,11 +170,8 @@ if(!res.ok){
 throw new Error(data.message)
 }
 
-setShowModal(false)
-setOutput("")
-setWaste("")
-setRemarks("")
-setMessage("✔ Session Logged Successfully")
+// stop session
+updateSession(session.id, "running", false)
 
 }catch(err){
 alert(err.message)
@@ -191,115 +199,74 @@ return(
 
 <h1>Supervisor Production Console</h1>
 
-<div className="grid">
+<button onClick={addSession} style={{
+marginBottom:"20px",
+padding:"10px",
+background:"#2563eb",
+color:"white",
+border:"none"
+}}>
++ Add Session
+</button>
 
-<div className="card">
 
-<h2>Session Setup</h2>
+{sessions.length === 0 && <p>No sessions yet</p>}
+
+
+{sessions.map((s)=>(
+
+<div key={s.id} className="card" style={{marginBottom:"20px"}}>
+
+<h3>Session #{s.id}</h3>
 
 <label>Operator</label>
 <input
-className="bg-black text-white px-3 py-2 rounded border border-gray-600 w-full"
-value={operator}
-onChange={(e)=>setOperator(e.target.value)}
+className="bg-black text-white w-full"
+value={s.operator}
+onChange={(e)=>updateSession(s.id,"operator",e.target.value)}
 />
 
 <label>Material</label>
 <select
-className="bg-black text-white px-3 py-2 rounded border border-gray-600 w-full"
-value={material}
-onChange={(e)=>setMaterial(e.target.value)}
+className="bg-black text-white w-full"
+value={s.material}
+onChange={(e)=>updateSession(s.id,"material",e.target.value)}
 >
-
-<option value="" style={{color:"black"}}>Select Material</option>
-
+<option value="">Select</option>
 {materials.map((m,i)=>(
-<option key={i} value={m} style={{color:"black"}}>
-{m}
-</option>
+<option key={i} value={m}>{m}</option>
 ))}
-
 </select>
 
-<label>KG Used</label>
+<label>KG</label>
 <input
 type="number"
-className="bg-black text-white px-3 py-2 rounded border border-gray-600 w-full"
-value={kg}
-onChange={(e)=>setKg(Number(e.target.value))}
+className="bg-black text-white w-full"
+value={s.kg}
+onChange={(e)=>updateSession(s.id,"kg",Number(e.target.value))}
 />
-
-<p style={{marginTop:"10px"}}>
-Expected Output: <b>{expectedOutput}</b>
-</p>
-
-<div className="buttons">
-
-<button onClick={startSession} disabled={loading}>
-{loading ? "Starting..." : "Start Session"}
-</button>
-
-<button onClick={stopSession}>
-Stop Session
-</button>
-
-</div>
-
-</div>
-
-
-<div className="card">
-
-<h2>Session Timer</h2>
 
 <p>
-{running ? `${timer} seconds running` : "No active session"}
+Expected: <b>
+{Math.floor(s.kg * (materialRates[s.material] || 1))}
+</b>
 </p>
 
-</div>
+<p>
+{ s.running ? `⏱ ${s.timer}s` : "Stopped" }
+</p>
 
-</div>
+<button onClick={()=>startSession(s)} disabled={loading}>
+Start
+</button>
 
-{message && (
-<div>
-<p>{message}</p>
-</div>
-)}
-
-{showModal && (
-<div>
-
-<h3>Enter Output Produced</h3>
-
-<input
-type="number"
-placeholder="Output"
-className="bg-black text-white"
-value={output}
-onChange={(e)=>setOutput(e.target.value)}
-/>
-
-<input
-type="number"
-placeholder="Waste"
-className="bg-black text-white"
-value={waste}
-onChange={(e)=>setWaste(e.target.value)}
-/>
-
-<textarea
-placeholder="Remarks"
-className="bg-black text-white"
-value={remarks}
-onChange={(e)=>setRemarks(e.target.value)}
-/>
-
-<button onClick={submitOutput}>
-Submit Output
+<button onClick={()=>stopSession(s)}>
+Stop
 </button>
 
 </div>
-)}
+
+))}
 
 </div>
 </div>

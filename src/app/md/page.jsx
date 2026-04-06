@@ -1,12 +1,27 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import MDDashboard from "./md"
 
-useEffect(()=>{
-const role = localStorage.getItem("role")
-if(role !== "md"){
-window.location.href = "/login"
-}
-},[])
-
 export default function Page(){
-return <MDDashboard/>
+
+  const [authorized, setAuthorized] = useState(false)
+
+  useEffect(()=>{
+    if(typeof window !== "undefined"){
+      const role = localStorage.getItem("role")
+
+      if(role === "md"){
+        setAuthorized(true)
+      } else {
+        window.location.href = "/login"
+      }
+    }
+  },[])
+
+  if(!authorized){
+    return null
+  }
+
+  return <MDDashboard/>
 }

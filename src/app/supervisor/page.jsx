@@ -1,13 +1,27 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import SupervisorDashboard from "./supervisor"
 
+export default function Page(){
 
-useEffect(()=>{
-const role = localStorage.getItem("role")
-if(role !== "supervisor"){
-window.location.href = "/login"
-}
-},[])
+  const [authorized, setAuthorized] = useState(false)
 
-export default function Page() {
-  return <SupervisorDashboard />;
+  useEffect(()=>{
+    if(typeof window !== "undefined"){
+      const role = localStorage.getItem("role")
+
+      if(role === "supervisor"){
+        setAuthorized(true)
+      } else {
+        window.location.href = "/login"
+      }
+    }
+  },[])
+
+  if(!authorized){
+    return null
+  }
+
+  return <SupervisorDashboard/>
 }
