@@ -1,10 +1,16 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import Sidebar from "@/components/sidebar"
 import Topbar from "@/components/topbar"
 
-import { Line } from "react-chartjs-2"
+// ✅ LOAD CHART ONLY ON CLIENT
+const Line = dynamic(
+  () => import("react-chartjs-2").then(mod => mod.Line),
+  { ssr: false }
+)
+
 import {
 Chart as ChartJS,
 CategoryScale,
@@ -80,7 +86,7 @@ return ()=>clearInterval(interval)
 const completed =
 sessions
 .filter(s=>s.status==="completed")
-.sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt)) // newest first
+.sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt))
 
 const totalSessions = completed.length
 
@@ -100,7 +106,7 @@ completed.reduce((sum,s)=>sum + (s.waste || 0),0)
 
 
 // =========================
-// CHART DATA (SAFE)
+// CHART DATA
 // =========================
 const chartData = {
 labels: completed.map((_,i)=>`S${i+1}`),
@@ -143,8 +149,6 @@ return(
 
 {loading && <p>Loading dashboard...</p>}
 
-
-{/* KPI CARDS */}
 <div className="grid">
 
 <div className="card">
