@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Sidebar from "@/components/Sidebar"
-import Topbar from "@/components/Topbar"
+import Sidebar from "@/components/sidebar"
+import Topbar from "@/components/topbar"
 
 export default function AdminDashboard(){
 
