@@ -47,6 +47,10 @@ export function middleware(req: NextRequest){
     return NextResponse.redirect(new URL("/", req.url))
   }
 
+  if(req.nextUrl.pathname.startsWith("/control-admin") && role !== "superadmin"){
+  return NextResponse.redirect(new URL("/", req.url))
+  }
+
   return NextResponse.next()
 }
 

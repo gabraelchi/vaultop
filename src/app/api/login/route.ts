@@ -13,6 +13,45 @@ export async function POST(req: Request){
     const { companyId, username, password } = await req.json()
 
     // =========================
+// CONTROL ADMIN ACCESS
+// =========================
+  if (companyId === "controladmin") {
+
+  const ADMIN_USERNAME = "leonixstdltd"
+  const ADMIN_PASSWORD = process.env.CONTROL_ADMIN_PASS
+
+  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+    return NextResponse.json(
+      { message: "Unauthorized" },
+      { status: 401 }
+    )
+  }
+
+  const token = signToken({
+    role: "superadmin",
+    username: ADMIN_USERNAME,
+    companyId: "CONTROL"
+  })
+
+  const response = NextResponse.json({
+    success: true,
+    role: "superadmin",
+    companyId: "CONTROL",
+    username: ADMIN_USERNAME
+  })
+
+  response.cookies.set("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7
+  })
+
+  return response
+  }
+
+    // =========================
     // 1. VALIDATE INPUT
     // =========================
     if(!companyId || !username || !password){

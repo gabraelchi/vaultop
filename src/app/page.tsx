@@ -43,6 +43,7 @@ export default function Home(){
       if(data.role === "admin") window.location.href = "/admin"
       if(data.role === "md") window.location.href = "/md"
       if(data.role === "supervisor") window.location.href = "/supervisor"
+      if(data.role === "superadmin") window.location.href = "/control-admin"
 
     }catch(err: any){
       setError(err?.message || "Login failed")
