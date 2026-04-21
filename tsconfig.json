@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-, "src/app/md/page.jsx"  ],
+, "src/app/md/page.jsx", "src/app/contriladmin/page.jsx"  ],
   "exclude": ["node_modules"]
 }

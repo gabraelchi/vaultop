@@ -10,12 +10,11 @@ export default function SupervisorDashboard(){
 // MULTI SESSION STATE
 // =========================
 const [sessions, setSessions] = useState([])
-
 const [loading,setLoading] = useState(false)
 
 
 // =========================
-// MATERIALS (MATCH BACKEND)
+// MATERIALS
 // =========================
 const materials = [
 "MATERIAL1",
@@ -33,10 +32,9 @@ MATERIAL4: 6.1
 
 
 // =========================
-// ADD NEW SESSION BLOCK
+// ADD SESSION
 // =========================
 function addSession(){
-
 setSessions(prev => [
 ...prev,
 {
@@ -49,41 +47,34 @@ timer:0,
 sessionId:null
 }
 ])
-
 }
 
 
 // =========================
-// UPDATE SESSION FIELD
+// UPDATE SESSION
 // =========================
 function updateSession(id, field, value){
-
 setSessions(prev =>
 prev.map(s =>
 s.id === id ? { ...s, [field]: value } : s
 )
 )
-
 }
 
 
 // =========================
-// TIMER PER SESSION
+// TIMER
 // =========================
 useEffect(()=>{
-
 const interval = setInterval(()=>{
-
 setSessions(prev =>
 prev.map(s =>
 s.running ? { ...s, timer: s.timer + 1 } : s
 )
 )
-
 },1000)
 
 return ()=> clearInterval(interval)
-
 },[])
 
 
@@ -109,8 +100,9 @@ try{
 const res = await fetch("/api/production",{
 method:"POST",
 headers:{ "Content-Type":"application/json" },
+credentials:"include", // ✅ IMPORTANT (JWT COOKIE)
 body: JSON.stringify({
-machineId:"Machine-" + session.id,
+machineId: `Machine-${session.id}-${Date.now()}`,
 operator: session.operator,
 material: session.material,
 kg: session.kg
@@ -120,7 +112,7 @@ kg: session.kg
 const data = await res.json()
 
 if(!res.ok){
-throw new Error(data.message || "Failed")
+throw new Error(data.message || "Failed to start session")
 }
 
 updateSession(session.id, "sessionId", data._id)
@@ -128,11 +120,10 @@ updateSession(session.id, "running", true)
 updateSession(session.id, "timer", 0)
 
 }catch(err){
-alert(err.message)
+alert(err instanceof Error ? err.message : "Error starting session")
 }
 
 setLoading(false)
-
 }
 
 
@@ -156,6 +147,7 @@ try{
 const res = await fetch("/api/production",{
 method:"PUT",
 headers:{ "Content-Type":"application/json" },
+credentials:"include", // ✅ IMPORTANT
 body: JSON.stringify({
 sessionId: session.sessionId,
 actualOutput: Number(output),
@@ -167,18 +159,16 @@ remarks:""
 const data = await res.json()
 
 if(!res.ok){
-throw new Error(data.message)
+throw new Error(data.message || "Failed to stop session")
 }
 
-// stop session
 updateSession(session.id, "running", false)
 
 }catch(err){
-alert(err.message)
+alert(err instanceof Error ? err.message : "Error stopping session")
 }
 
 setLoading(false)
-
 }
 
 
@@ -209,9 +199,7 @@ border:"none"
 + Add Session
 </button>
 
-
 {sessions.length === 0 && <p>No sessions yet</p>}
-
 
 {sessions.map((s)=>(
 
@@ -253,7 +241,7 @@ Expected: <b>
 </p>
 
 <p>
-{ s.running ? `⏱ ${s.timer}s` : "Stopped" }
+{s.running ? `⏱ ${s.timer}s` : "Stopped"}
 </p>
 
 <button onClick={()=>startSession(s)} disabled={loading}>

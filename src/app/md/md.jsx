@@ -5,304 +5,347 @@ import dynamic from "next/dynamic"
 import Sidebar from "@/components/sidebar"
 import Topbar from "@/components/topbar"
 
-// ✅ LOAD CHART ONLY ON CLIENT
+// ✅ CHART CLIENT ONLY
 const Line = dynamic(
   () => import("react-chartjs-2").then(mod => mod.Line),
   { ssr: false }
 )
 
 import {
-Chart as ChartJS,
-CategoryScale,
-LinearScale,
-PointElement,
-LineElement,
-Tooltip,
-Legend
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend
 } from "chart.js"
 
 ChartJS.register(
-CategoryScale,
-LinearScale,
-PointElement,
-LineElement,
-Tooltip,
-Legend
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend
 )
 
 export default function MDDashboard(){
 
-const [sessions,setSessions] = useState([])
-const [activeSessions,setActiveSessions] = useState([])
-const [loading,setLoading] = useState(true)
+  const [sessions,setSessions] = useState([])
+  const [activeSessions,setActiveSessions] = useState([])
+  const [loading,setLoading] = useState(true)
+  const [companyName,setCompanyName] = useState("")
 
+  // =========================
+  // 🔐 SESSION CHECK
+  // =========================
+  useEffect(()=>{
+    const hasToken = document.cookie.includes("token=")
 
-// =========================
-// FETCH FROM DB
-// =========================
-async function fetchSessions(){
+    if(!hasToken){
+      window.location.href = "/company-login"
+    }
 
-try{
+    const name = localStorage.getItem("companyName")
+    if(name) setCompanyName(name)
 
-const res = await fetch("/api/production")
-const data = await res.json()
+  },[])
 
-if(!res.ok){
-throw new Error("Failed to fetch data")
-}
 
-setSessions(data)
+  // =========================
+  // ✅ SECURE FETCH (JWT BASED)
+  // =========================
+  async function fetchSessions(){
 
-setActiveSessions(
-data.filter(s=>s.status==="running")
-)
+    try{
 
-}catch(err){
-console.error(err)
-}
+      const res = await fetch("/api/production", {
+        cache: "no-store"
+      })
 
-setLoading(false)
+      let data = []
 
-}
+      try{
+        data = await res.json()
+      }catch{
+        console.warn("Invalid JSON")
+        return
+      }
 
+      if(res.status === 401){
+        window.location.href = "/company-login"
+        return
+      }
 
-// =========================
-// LOAD + AUTO REFRESH
-// =========================
-useEffect(()=>{
+      if(!res.ok){
+        console.error("API ERROR:", data)
+        return
+      }
 
-fetchSessions()
+      if(!Array.isArray(data)){
+        console.error("Invalid data format:", data)
+        return
+      }
 
-const interval = setInterval(fetchSessions,3000)
+      setSessions(data)
 
-return ()=>clearInterval(interval)
+      setActiveSessions(
+        data.filter(s => s.status === "running")
+      )
 
-},[])
+    }catch(err){
+      console.error("FETCH ERROR:", err)
+    }finally{
+      setLoading(false)
+    }
 
+  }
 
-// =========================
-// CALCULATIONS
-// =========================
-const completed =
-sessions
-.filter(s=>s.status==="completed")
-.sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt))
 
-const totalSessions = completed.length
+  // =========================
+  // AUTO REFRESH
+  // =========================
+  useEffect(()=>{
 
-const totalProduction =
-completed.reduce((sum,s)=>sum + (s.actualOutput || 0),0)
+    fetchSessions()
 
-const fraudCount =
-completed.filter(s=>s.margin < -5).length
+    const interval = setInterval(fetchSessions,3000)
 
-const avgEfficiency =
-completed.length
-? completed.reduce((sum,s)=>sum + (s.efficiency || 0),0) / completed.length
-: 0
+    return ()=> clearInterval(interval)
 
-const totalWaste =
-completed.reduce((sum,s)=>sum + (s.waste || 0),0)
+  },[])
 
 
-// =========================
-// CHART DATA
-// =========================
-const chartData = {
-labels: completed.map((_,i)=>`S${i+1}`),
-datasets:[
-{
-label:"Production Output",
-data: completed.map(s=>s.actualOutput || 0),
-tension:0.3
-}
-]
-}
+  // =========================
+  // CALCULATIONS
+  // =========================
+  const completed =
+    sessions
+    .filter(s => s?.status === "completed")
+    .sort((a,b)=> new Date(b?.createdAt) - new Date(a?.createdAt))
 
+  const totalSessions = completed.length
 
-// =========================
-// FRAUD STYLE
-// =========================
-function fraudClass(session){
-return session.margin < -5
-? "fraudRed"
-: "fraudGreen"
-}
+  const totalProduction =
+    completed.reduce((sum,s)=> sum + (s?.actualOutput || 0), 0)
 
+  const fraudCount =
+    completed.filter(s => (s?.margin ?? 0) < -5).length
 
-// =========================
-// UI
-// =========================
-return(
+  const avgEfficiency =
+    completed.length
+      ? completed.reduce((sum,s)=> sum + (s?.efficiency || 0),0) / completed.length
+      : 0
 
-<div className="dashboard">
+  const totalWaste =
+    completed.reduce((sum,s)=> sum + (s?.waste || 0), 0)
 
-<Sidebar/>
 
-<div className="main">
+  // =========================
+  // CHART DATA
+  // =========================
+  const chartData = {
+    labels: completed.map((_,i)=>`S${i+1}`),
+    datasets:[
+      {
+        label:"Production Output",
+        data: completed.map(s => s?.actualOutput || 0),
+        tension:0.3
+      }
+    ]
+  }
 
-<Topbar/>
 
-<div className="content">
+  // =========================
+  // FRAUD STYLE
+  // =========================
+  function fraudClass(session){
+    return (session?.margin ?? 0) < -5
+      ? "fraudRed"
+      : "fraudGreen"
+  }
 
-<h1>Managing Director Dashboard</h1>
 
-{loading && <p>Loading dashboard...</p>}
+  // =========================
+  // UI
+  // =========================
+  return(
 
-<div className="grid">
+    <div className="dashboard">
 
-<div className="card">
-<h2>Total Sessions</h2>
-<p>{totalSessions}</p>
-</div>
+      <Sidebar/>
 
-<div className="card">
-<h2>Total Production</h2>
-<p>{totalProduction}</p>
-</div>
+      <div className="main">
 
-<div className="card">
-<h2>Avg Efficiency</h2>
-<p>{avgEfficiency ? avgEfficiency.toFixed(1) : 0}%</p>
-</div>
+        <Topbar/>
 
-<div className="card">
-<h2>Fraud Alerts</h2>
-<p className="fraudRed">{fraudCount}</p>
-</div>
+        <div className="content">
 
-<div className="card">
-<h2>Total Waste</h2>
-<p>{totalWaste}</p>
-</div>
+          <h1>
+            Managing Director Dashboard
+            {companyName && ` - ${companyName}`}
+          </h1>
 
-</div>
+          {loading && <p>Loading dashboard...</p>}
 
 
-{/* LIVE SESSIONS */}
-<div className="card" style={{marginTop:"20px"}}>
+          {/* KPI */}
+          <div className="grid">
 
-<h2>Live Factory Status</h2>
+            <div className="card">
+              <h2>Total Sessions</h2>
+              <p>{totalSessions}</p>
+            </div>
 
-{activeSessions.length === 0 && <p>No active sessions</p>}
+            <div className="card">
+              <h2>Total Production</h2>
+              <p>{totalProduction}</p>
+            </div>
 
-{activeSessions.map((s,i)=>(
+            <div className="card">
+              <h2>Avg Efficiency</h2>
+              <p>{avgEfficiency ? avgEfficiency.toFixed(1) : 0}%</p>
+            </div>
 
-<div key={i} style={{marginBottom:"10px"}}>
+            <div className="card">
+              <h2>Fraud Alerts</h2>
+              <p className="fraudRed">{fraudCount}</p>
+            </div>
 
-<p><b>Machine:</b> {s.machineId}</p>
-<p><b>Operator:</b> {s.operator}</p>
-<p><b>Material:</b> {s.material}</p>
+            <div className="card">
+              <h2>Total Waste</h2>
+              <p>{totalWaste}</p>
+            </div>
 
-<p style={{color:"green"}}>🟢 Running</p>
+          </div>
 
-<hr/>
 
-</div>
+          {/* LIVE */}
+          <div className="card" style={{marginTop:"20px"}}>
 
-))}
+            <h2>Live Factory Status</h2>
 
-</div>
+            {activeSessions.length === 0 && <p>No active sessions</p>}
 
+            {activeSessions.map((s,i)=>(
 
-{/* CHART */}
-<div className="card" style={{marginTop:"20px"}}>
+              <div key={i} style={{marginBottom:"10px"}}>
 
-<h2>Production Trend</h2>
+                <p><b>Machine:</b> {s?.machineId || "-"}</p>
+                <p><b>Operator:</b> {s?.operator || "-"}</p>
+                <p><b>Material:</b> {s?.material || "-"}</p>
 
-{completed.length === 0
-? <p>No data yet</p>
-: <Line data={chartData} />
-}
+                <p style={{color:"green"}}>🟢 Running</p>
 
-</div>
+                <hr/>
 
+              </div>
 
-{/* INSIGHTS */}
-<div className="card" style={{marginTop:"20px"}}>
+            ))}
 
-<h2>Insights</h2>
+          </div>
 
-{fraudCount > 0 && (
-<p style={{color:"red"}}>
-⚠ {fraudCount} loss alert(s) detected
-</p>
-)}
 
-{avgEfficiency < 75 && completed.length > 0 && (
-<p style={{color:"orange"}}>
-⚠ Efficiency below optimal level
-</p>
-)}
+          {/* CHART */}
+          <div className="card" style={{marginTop:"20px"}}>
 
-{totalWaste > 0 && (
-<p>
-⚠ Waste recorded: {totalWaste}
-</p>
-)}
+            <h2>Production Trend</h2>
 
-{fraudCount === 0 && avgEfficiency >= 75 && completed.length > 0 && (
-<p style={{color:"green"}}>
-✔ Production operating normally
-</p>
-)}
+            {completed.length === 0
+              ? <p>No data yet</p>
+              : <Line data={chartData} />
+            }
 
-</div>
+          </div>
 
 
-{/* SESSION TABLE */}
-<div className="card" style={{marginTop:"20px"}}>
+          {/* INSIGHTS */}
+          <div className="card" style={{marginTop:"20px"}}>
 
-<h2>Session Analysis</h2>
+            <h2>Insights</h2>
 
-<table className="sessionTable">
+            {fraudCount > 0 && (
+              <p style={{color:"red"}}>
+                ⚠ {fraudCount} loss alert(s) detected
+              </p>
+            )}
 
-<thead>
-<tr>
-<th>Machine</th>
-<th>Operator</th>
-<th>Output</th>
-<th>Efficiency</th>
-<th>Waste</th>
-<th>Status</th>
-</tr>
-</thead>
+            {avgEfficiency < 75 && completed.length > 0 && (
+              <p style={{color:"orange"}}>
+                ⚠ Efficiency below optimal level
+              </p>
+            )}
 
-<tbody>
+            {totalWaste > 0 && (
+              <p>⚠ Waste recorded: {totalWaste}</p>
+            )}
 
-{completed.map((s,i)=>(
+            {fraudCount === 0 && avgEfficiency >= 75 && completed.length > 0 && (
+              <p style={{color:"green"}}>
+                ✔ Production operating normally
+              </p>
+            )}
 
-<tr key={i}>
+          </div>
 
-<td>{s.machineId}</td>
-<td>{s.operator}</td>
-<td>{s.actualOutput}</td>
 
-<td>
-{s.efficiency ? `${s.efficiency.toFixed(1)}%` : "-"}
-</td>
+          {/* TABLE */}
+          <div className="card" style={{marginTop:"20px"}}>
 
-<td>{s.waste || 0}</td>
+            <h2>Session Analysis</h2>
 
-<td className={fraudClass(s)}>
-{s.margin < -5 ? "⚠ Loss" : "✔ OK"}
-</td>
+            <table className="sessionTable">
 
-</tr>
+              <thead>
+                <tr>
+                  <th>Machine</th>
+                  <th>Operator</th>
+                  <th>Output</th>
+                  <th>Efficiency</th>
+                  <th>Waste</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
 
-))}
+              <tbody>
 
-</tbody>
+                {completed.map((s,i)=>(
 
-</table>
+                  <tr key={i}>
 
-</div>
+                    <td>{s?.machineId || "-"}</td>
+                    <td>{s?.operator || "-"}</td>
+                    <td>{s?.actualOutput || "-"}</td>
 
-</div>
+                    <td>
+                      {s?.efficiency
+                        ? `${s.efficiency.toFixed(1)}%`
+                        : "-"
+                      }
+                    </td>
 
-</div>
+                    <td>{s?.waste || 0}</td>
 
-</div>
+                    <td className={fraudClass(s)}>
+                      {(s?.margin ?? 0) < -5 ? "⚠ Loss" : "✔ OK"}
+                    </td>
 
-)
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  )
 }

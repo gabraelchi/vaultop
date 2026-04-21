@@ -1,25 +1,91 @@
 import { NextResponse } from "next/server"
+import { connectDB } from "@/lib/mongodb"
+import User from "@/models/Users"
+import bcrypt from "bcryptjs"
+import { signToken } from "@/lib/jwt"
 
 export async function POST(req: Request){
 
-const { username, password } = await req.json()
+  await connectDB()
 
-// DEMO USERS
-if(username === "admin" && password === "admin123"){
- return NextResponse.json({ success:true, role:"admin" })
-}
+  try{
 
-if(username === "md" && password === "md123"){
- return NextResponse.json({ success:true, role:"md" })
-}
+    const { companyId, username, password } = await req.json()
 
-if(username === "supervisor" && password === "sup123"){
- return NextResponse.json({ success:true, role:"supervisor" })
-}
+    // =========================
+    // 1. VALIDATE INPUT
+    // =========================
+    if(!companyId || !username || !password){
+      return NextResponse.json(
+        { message:"All fields are required" },
+        { status:400 }
+      )
+    }
 
-return NextResponse.json(
-{ success:false, message:"Invalid credentials" },
-{ status:401 }
-)
+    // =========================
+    // 2. FIND USER (COMPANY-SCOPED)
+    // =========================
+    const user = await User.findOne({
+      username,
+      companyId
+    })
 
+    if(!user){
+      return NextResponse.json(
+        { message:"Invalid credentials" },
+        { status:401 }
+      )
+    }
+
+    // =========================
+    // 3. VERIFY PASSWORD
+    // =========================
+    const isMatch = await bcrypt.compare(password, user.password)
+
+    if(!isMatch){
+      return NextResponse.json(
+        { message:"Invalid credentials" },
+        { status:401 }
+      )
+    }
+
+    // =========================
+    // 4. CREATE JWT
+    // =========================
+    const token = signToken({
+      userId: user._id,
+      role: user.role,
+      companyId: user.companyId,
+      username: user.username
+    })
+
+    // =========================
+    // 5. RESPONSE + COOKIE
+    // =========================
+    const response = NextResponse.json({
+      success:true,
+      role:user.role,
+      companyId:user.companyId,
+      username:user.username
+    })
+
+    response.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7
+    })
+
+    return response
+
+  }catch(err:any){
+
+    console.error("LOGIN ERROR:", err)
+
+    return NextResponse.json(
+      { message:"Server error" },
+      { status:500 }
+    )
+  }
 }
