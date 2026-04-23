@@ -13,12 +13,24 @@ export async function POST(req: Request){
     const { companyId, username, password } = await req.json()
 
     // =========================
+    // CONTROL ADMIN ACCESS
+    // =========================
+  // =========================
 // CONTROL ADMIN ACCESS
 // =========================
-  if (companyId === "controladmin") {
+    if (companyId === "controladmin") {
 
   const ADMIN_USERNAME = "leonixstdltd"
   const ADMIN_PASSWORD = process.env.CONTROL_ADMIN_PASS
+
+  // 🔴 ENV CHECK
+  if (!ADMIN_PASSWORD) {
+    console.error("Missing CONTROL_ADMIN_PASS in env")
+    return NextResponse.json(
+      { message: "Server configuration error" },
+      { status: 500 }
+    )
+  }
 
   if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
     return NextResponse.json(
@@ -27,15 +39,16 @@ export async function POST(req: Request){
     )
   }
 
+  // ✅ FIXED ROLE HERE
   const token = signToken({
-    role: "superadmin",
+    role: "controladmin",
     username: ADMIN_USERNAME,
     companyId: "CONTROL"
   })
 
   const response = NextResponse.json({
     success: true,
-    role: "superadmin",
+    role: "controladmin",
     companyId: "CONTROL",
     username: ADMIN_USERNAME
   })
@@ -49,10 +62,10 @@ export async function POST(req: Request){
   })
 
   return response
-  }
+    }
 
     // =========================
-    // 1. VALIDATE INPUT
+    // VALIDATE INPUT
     // =========================
     if(!companyId || !username || !password){
       return NextResponse.json(
@@ -62,7 +75,7 @@ export async function POST(req: Request){
     }
 
     // =========================
-    // 2. FIND USER (COMPANY-SCOPED)
+    // FIND USER
     // =========================
     const user = await User.findOne({
       username,
@@ -77,7 +90,7 @@ export async function POST(req: Request){
     }
 
     // =========================
-    // 3. VERIFY PASSWORD
+    // VERIFY PASSWORD
     // =========================
     const isMatch = await bcrypt.compare(password, user.password)
 
@@ -89,7 +102,7 @@ export async function POST(req: Request){
     }
 
     // =========================
-    // 4. CREATE JWT
+    // CREATE TOKEN
     // =========================
     const token = signToken({
       userId: user._id,
@@ -98,9 +111,6 @@ export async function POST(req: Request){
       username: user.username
     })
 
-    // =========================
-    // 5. RESPONSE + COOKIE
-    // =========================
     const response = NextResponse.json({
       success:true,
       role:user.role,

@@ -2,23 +2,23 @@ import { NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongodb"
 import Company from "@/models/Company"
 import { verifyToken } from "@/lib/jwt"
+import { cookies } from "next/headers"
 
-function getToken(req: Request){
-  const cookie = req.headers.get("cookie")
-  if(!cookie) return null
-  const match = cookie.match(/token=([^;]+)/)
-  return match ? match[1] : null
-}
 
-export async function GET(req: Request){
+export async function GET(){
 
   await connectDB()
 
-  const token = getToken(req)
+  const cookieStore = cookies() as any // ✅ FIX HERE
+  const token = cookieStore.get("token")?.value
+
   const decoded: any = verifyToken(token || "")
 
-  if(!decoded || decoded.role !== "controladmin"){
-    return NextResponse.json({ message:"Unauthorized" },{ status:403 })
+  if(!decoded || decoded.role !== "superadmin"){
+    return NextResponse.json(
+      { message:"Unauthorized" },
+      { status:403 }
+    )
   }
 
   const companies = await Company.find().sort({ createdAt:-1 })
