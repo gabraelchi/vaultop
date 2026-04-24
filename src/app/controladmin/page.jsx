@@ -13,9 +13,26 @@ export default function ControlAdmin(){
 
   // ================= LOAD COMPANIES =================
   async function loadCompanies(){
-    const res = await fetch("/api/controladmin/companies")
-    const data = await res.json()
-    setCompanies(data)
+    try{
+      const res = await fetch("/api/controladmin/companies")
+
+      if(!res.ok){
+        console.error("API ERROR:", res.status)
+        return
+      }
+
+      const text = await res.text()
+
+      try{
+        const data = JSON.parse(text)
+        setCompanies(data)
+      }catch{
+        console.error("NOT JSON RESPONSE:", text)
+      }
+
+    }catch(err){
+      console.error("FETCH FAILED:", err)
+    }
   }
 
   useEffect(()=>{
@@ -41,30 +58,43 @@ export default function ControlAdmin(){
   // ================= CREATE COMPANY =================
   async function createCompany(){
 
-    const res = await fetch("/api/controladmin/create-company",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        companyId,
-        companyName,
-        users
+    try{
+      const res = await fetch("/api/controladmin/create-company",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          companyId,
+          companyName,
+          users
+        })
       })
-    })
 
-    const data = await res.json()
+      const text = await res.text()
 
-    if(!res.ok){
-      alert(data.message)
-      return
+      let data
+      try{
+        data = JSON.parse(text)
+      }catch{
+        alert("Invalid server response")
+        return
+      }
+
+      if(!res.ok){
+        alert(data.message)
+        return
+      }
+
+      alert("Company created")
+
+      setCompanyId("")
+      setCompanyName("")
+      setUsers([{ username:"", password:"", role:"admin" }])
+
+      loadCompanies()
+
+    }catch(err){
+      console.error("CREATE ERROR:", err)
     }
-
-    alert("Company created")
-
-    setCompanyId("")
-    setCompanyName("")
-    setUsers([{ username:"", password:"", role:"admin" }])
-
-    loadCompanies()
   }
 
   // ================= UI =================
@@ -129,7 +159,6 @@ export default function ControlAdmin(){
         </button>
 
       </div>
-
 
       {/* COMPANY CARDS */}
       <h2>Companies</h2>
