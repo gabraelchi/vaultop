@@ -30,6 +30,8 @@ export default function Home(){
 
       const data = await res.json()
 
+      console.log("LOGIN RESPONSE:", data)
+
       if(!res.ok){
         throw new Error(data.message || "Login failed")
       }
@@ -39,13 +41,15 @@ export default function Home(){
       localStorage.setItem("username", data.username)
       localStorage.setItem("role", data.role)
 
-      // ✅ REDIRECT
+      // ✅ CORRECT REDIRECT (FIXED)
       if(data.role === "admin") window.location.href = "/admin"
-      if(data.role === "md") window.location.href = "/md"
-      if(data.role === "supervisor") window.location.href = "/supervisor"
-      if(data.role === "superadmin") window.location.href = "/control-admin"
+      else if(data.role === "md") window.location.href = "/md"
+      else if(data.role === "supervisor") window.location.href = "/supervisor"
+      else if(data.role === "superadmin") window.location.href = "/controladmin"
+      else window.location.href = "/"
 
     }catch(err: any){
+      console.error("LOGIN ERROR:", err)
       setError(err?.message || "Login failed")
     }
 
@@ -144,7 +148,7 @@ export default function Home(){
       </section>
 
 
-      {/* LEONIX BRAND */}
+      {/* FOOTER */}
       <section style={footerStyle}>
 
         <p style={{opacity:0.5}}>Powered by</p>

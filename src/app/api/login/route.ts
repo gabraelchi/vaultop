@@ -1,137 +1,105 @@
 import { NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongodb"
-import User from "@/models/Users"
+import Company from "@/models/Company"
 import bcrypt from "bcryptjs"
-import { signToken } from "@/lib/jwt"
+import jwt from "jsonwebtoken"
 
 export async function POST(req: Request){
-
-  await connectDB()
 
   try{
 
     const { companyId, username, password } = await req.json()
 
-    // =========================
-    // CONTROL ADMIN ACCESS
-    // =========================
-  // =========================
-// CONTROL ADMIN ACCESS
-// =========================
-    if (companyId === "controladmin") {
+    // ✅ CONTROL ADMIN LOGIN
+    if(companyId === "controladmin"){
 
-  const ADMIN_USERNAME = "leonixstdltd"
-  const ADMIN_PASSWORD = process.env.CONTROL_ADMIN_PASS
+      const ADMIN_USERNAME = "leonixstdltd"
+      const ADMIN_PASSWORD = process.env.CONTROL_ADMIN_PASS
 
-  // 🔴 ENV CHECK
-  if (!ADMIN_PASSWORD) {
-    console.error("Missing CONTROL_ADMIN_PASS in env")
-    return NextResponse.json(
-      { message: "Server configuration error" },
-      { status: 500 }
-    )
-  }
+      if(!ADMIN_PASSWORD){
+        return NextResponse.json(
+          { message:"Server config error" },
+          { status:500 }
+        )
+      }
 
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
-    return NextResponse.json(
-      { message: "Unauthorized" },
-      { status: 401 }
-    )
-  }
+      if(username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD){
+        return NextResponse.json(
+          { message:"Invalid credentials" },
+          { status:401 }
+        )
+      }
 
-  // ✅ FIXED ROLE HERE
-  const token = signToken({
-    role: "controladmin",
-    username: ADMIN_USERNAME,
-    companyId: "CONTROL"
-  })
+      const token = jwt.sign(
+        { role:"superadmin" },
+        process.env.JWT_SECRET!,
+        { expiresIn:"7d" }
+      )
 
-  const response = NextResponse.json({
-    success: true,
-    role: "controladmin",
-    companyId: "CONTROL",
-    username: ADMIN_USERNAME
-  })
+      const res = NextResponse.json({
+        companyId,
+        username,
+        role:"superadmin"
+      })
 
-  response.cookies.set("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7
-  })
+      res.cookies.set("token", token)
 
-  return response
+      return res
     }
 
-    // =========================
-    // VALIDATE INPUT
-    // =========================
-    if(!companyId || !username || !password){
+    // ================= NORMAL USERS =================
+
+    await connectDB()
+
+    const company = await Company.findOne({ companyId })
+
+    if(!company){
       return NextResponse.json(
-        { message:"All fields are required" },
-        { status:400 }
+        { message:"Company not found" },
+        { status:404 }
       )
     }
 
-    // =========================
-    // FIND USER
-    // =========================
-    const user = await User.findOne({
-      username,
-      companyId
-    })
+    const user = company.users.find((u:any)=>u.username === username)
 
     if(!user){
       return NextResponse.json(
-        { message:"Invalid credentials" },
-        { status:401 }
+        { message:"User not found" },
+        { status:404 }
       )
     }
 
-    // =========================
-    // VERIFY PASSWORD
-    // =========================
-    const isMatch = await bcrypt.compare(password, user.password)
+    const valid = await bcrypt.compare(password, user.password)
 
-    if(!isMatch){
+    if(!valid){
       return NextResponse.json(
         { message:"Invalid credentials" },
         { status:401 }
       )
     }
 
-    // =========================
-    // CREATE TOKEN
-    // =========================
-    const token = signToken({
-      userId: user._id,
-      role: user.role,
-      companyId: user.companyId,
-      username: user.username
+    const token = jwt.sign(
+      {
+        companyId,
+        username,
+        role:user.role
+      },
+      process.env.JWT_SECRET!,
+      { expiresIn:"7d" }
+    )
+
+    const res = NextResponse.json({
+      companyId,
+      username,
+      role:user.role
     })
 
-    const response = NextResponse.json({
-      success:true,
-      role:user.role,
-      companyId:user.companyId,
-      username:user.username
-    })
+    res.cookies.set("token", token)
 
-    response.cookies.set("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7
-    })
+    return res
 
-    return response
-
-  }catch(err:any){
-
-    console.error("LOGIN ERROR:", err)
-
+  }catch(err){
+    console.error(err)
     return NextResponse.json(
       { message:"Server error" },
       { status:500 }

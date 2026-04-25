@@ -4,12 +4,11 @@ import Company from "@/models/Company"
 import { verifyToken } from "@/lib/jwt"
 import { cookies } from "next/headers"
 
-
 export async function GET(){
 
   await connectDB()
 
-  const cookieStore = cookies() as any // ✅ FIX HERE
+  const cookieStore: any = cookies()
   const token = cookieStore.get("token")?.value
 
   const decoded: any = verifyToken(token || "")
