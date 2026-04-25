@@ -11,10 +11,12 @@ export async function POST(req: Request){
     const { companyId, username, password } = await req.json()
 
     // ✅ CONTROL ADMIN LOGIN
-    if(companyId === "controladmin"){
+ if(companyId === "controladmin"){
 
-      const ADMIN_USERNAME = "leonixstdltd"
-      const ADMIN_PASSWORD = process.env.CONTROL_ADMIN_PASS
+  const ADMIN_USERNAME = "leonixstdltd"
+  const ADMIN_PASSWORD = process.env.CONTROL_ADMIN_PASS
+
+  console.log("CONTROL ADMIN ENV:", ADMIN_PASSWORD) // ✅ ADD THIS
 
       if(!ADMIN_PASSWORD){
         return NextResponse.json(
