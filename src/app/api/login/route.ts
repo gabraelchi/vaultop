@@ -15,7 +15,6 @@ export async function POST(req: Request){
 
   const ADMIN_USERNAME = "leonixstdltd"
   const ADMIN_PASSWORD = process.env.CONTROL_ADMIN_PASS
-
   console.log("CONTROL ADMIN ENV:", ADMIN_PASSWORD) // ✅ ADD THIS
 
       if(!ADMIN_PASSWORD){
