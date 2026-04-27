@@ -8,12 +8,16 @@ export function middleware(req: NextRequest){
   const pathname = req.nextUrl.pathname
 
   // =========================
+  // ✅ ALWAYS ALLOW API ROUTES
+  // =========================
+  if(pathname.startsWith("/api")){
+    return NextResponse.next()
+  }
+
+  // =========================
   // PUBLIC ROUTES
   // =========================
-  if(
-    pathname === "/" ||
-    pathname.startsWith("/api/login")
-  ){
+  if(pathname === "/"){
     return NextResponse.next()
   }
 
@@ -47,8 +51,9 @@ export function middleware(req: NextRequest){
     return NextResponse.redirect(new URL("/", req.url))
   }
 
-  if(req.nextUrl.pathname.startsWith("/control-admin") && role !== "superadmin"){
-  return NextResponse.redirect(new URL("/", req.url))
+  // ✅ FIXED NAME HERE
+  if(pathname.startsWith("/controladmin") && role !== "superadmin"){
+    return NextResponse.redirect(new URL("/", req.url))
   }
 
   return NextResponse.next()
@@ -62,6 +67,6 @@ export const config = {
     "/admin/:path*",
     "/md/:path*",
     "/supervisor/:path*",
-    "/api/:path*"
+    "/controladmin/:path*"
   ]
 }
