@@ -13,22 +13,21 @@ export default function ControlAdmin(){
 
   // ================= LOAD COMPANIES =================
   async function loadCompanies(){
+
     try{
-      const res = await fetch("/api/controladmin/companies")
+
+      const res = await fetch("/api/controladmin/companies", {
+        credentials: "include" // ✅ IMPORTANT
+      })
 
       if(!res.ok){
-        console.error("API ERROR:", res.status)
+        const errorText = await res.text()
+        console.error("API ERROR:", res.status, errorText)
         return
       }
 
-      const text = await res.text()
-
-      try{
-        const data = JSON.parse(text)
-        setCompanies(data)
-      }catch{
-        console.error("NOT JSON RESPONSE:", text)
-      }
+      const data = await res.json()
+      setCompanies(data)
 
     }catch(err){
       console.error("FETCH FAILED:", err)
@@ -59,9 +58,11 @@ export default function ControlAdmin(){
   async function createCompany(){
 
     try{
+
       const res = await fetch("/api/controladmin/create-company",{
         method:"POST",
         headers:{ "Content-Type":"application/json" },
+        credentials: "include", // ✅ IMPORTANT
         body: JSON.stringify({
           companyId,
           companyName,
@@ -69,15 +70,7 @@ export default function ControlAdmin(){
         })
       })
 
-      const text = await res.text()
-
-      let data
-      try{
-        data = JSON.parse(text)
-      }catch{
-        alert("Invalid server response")
-        return
-      }
+      const data = await res.json()
 
       if(!res.ok){
         alert(data.message)
@@ -100,7 +93,7 @@ export default function ControlAdmin(){
   // ================= UI =================
   return(
 
-    <div style={{padding:"40px", color:"white"}}>
+    <div style={{padding:"40px", color:"white", background:"#020617", minHeight:"100vh"}}>
 
       <h1>Control Admin Panel</h1>
 
